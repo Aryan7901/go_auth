@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+
+FROM golang:1.20-alpine AS build
+
+RUN apk add --no-cache ca-certificates
+WORKDIR /app
+
+COPY go.mod ./
+COPY go.sum ./
+RUN go mod download
+
+COPY . ./
+RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /auth_service
+
+## Deploy
+FROM scratch
+COPY --from=build /auth_service /auth_service
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+
+COPY .env /
+EXPOSE 3001
+EXPOSE 587
+ENTRYPOINT ["/auth_service"]
